@@ -20,4 +20,4 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-app = "agent_chat.view:main"
+app = "agent_chat.main:main"

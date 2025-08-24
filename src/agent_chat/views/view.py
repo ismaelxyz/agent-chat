@@ -1,7 +1,7 @@
 import flet as ft
 from flet import Colors, Icons
-from .controller import ChatController
-from .model import ChatBotModel
+from ..controllers.chat_controller import ChatController
+from agent_chat.models import ChatBotModel
 
 def run(page: ft.Page):
     page.title = "Chatbot Básico"
@@ -73,8 +73,3 @@ def run(page: ft.Page):
         )
     )
 
-def main():
-    ft.app(target=run)
-
-if __name__ == "__main__":
-    main()

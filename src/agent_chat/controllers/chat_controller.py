@@ -1,5 +1,4 @@
-from .model import ChatBotModel
-import flet as ft
+from agent_chat.models import ChatBotModel
 
 class ChatController:
     def __init__(self, model: ChatBotModel):
