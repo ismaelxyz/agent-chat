@@ -24,6 +24,20 @@ class ConfigView(ft.Container):
         self.train_btn = ft.ElevatedButton("Entrenar", disabled=True, icon=Icons.PLAY_ARROW)
         self.confirm_btn = ft.OutlinedButton("Confirmar", icon=Icons.CHECK_CIRCLE)
         self.edit_again_btn = ft.TextButton("Editar de nuevo", icon=Icons.EDIT)
+        # Modo: un checkbox en lugar de tabs
+        self.use_generate = ft.Checkbox(
+            label="Generar nuevo desde intents.json",
+            value=False,
+            on_change=self._on_mode_change,
+        )
+        # Identificación del modelo custom
+        self.custom_version_text = ft.Text(value="", visible=False, color=Colors.BLUE_700)
+        self.custom_label_field = ft.TextField(
+            label="Etiqueta del modelo",
+            value="",
+            visible=False,
+            on_change=self._on_label_change,
+        )
         self.intents_editor = ft.TextField(
             label="intents.json",
             value="",
@@ -34,15 +48,6 @@ class ConfigView(ft.Container):
             visible=True,
             bgcolor=Colors.WHITE,
         )
-        # Tabs para modo
-        self.tabs = ft.Tabs(
-            selected_index=0,
-            tabs=[
-                ft.Tab(text="Usar local"),
-                ft.Tab(text="Generar nuevo"),
-            ],
-            on_change=self._on_mode_change,
-        )
 
         # Eventos
         self.pick_model_btn.on_click = lambda _: self.file_picker.pick_files(allow_multiple=False)
@@ -52,27 +57,29 @@ class ConfigView(ft.Container):
         self.train_btn.on_click = self._start_fake_training
 
         # Composición UI
-        local_section = ft.Column([
+        self.local_section = ft.Column([
             ft.Text("Modelo local"),
             ft.Row([self.pick_model_btn], alignment=ft.MainAxisAlignment.START),
             self.model_path_text,
         ], spacing=10)
 
-        generate_section = ft.Column([
+        self.generate_section = ft.Column([
             ft.Text("Nuevo modelo desde intents.json"),
             self.intents_editor,
+            ft.Row([self.custom_version_text], alignment=ft.MainAxisAlignment.START),
+            self.custom_label_field,
             ft.Row([self.confirm_btn, self.edit_again_btn, self.train_btn], spacing=10),
             self.progress_bar,
-        ], spacing=10)
+        ], spacing=10, expand=True, scroll=ft.ScrollMode.AUTO)
 
         content = ft.Column([
             ft.Text("Configuración", size=22, weight=ft.FontWeight.BOLD, color=Colors.BLUE_700),
             ft.Divider(),
-            self.tabs,
+            ft.Row([self.use_generate]),
             ft.Divider(),
-            local_section,
+            self.local_section,
             ft.Divider(),
-            generate_section,
+            self.generate_section,
         ], expand=True, spacing=10)
 
         super().__init__(content=content, padding=20, expand=True)
@@ -82,6 +89,8 @@ class ConfigView(ft.Container):
         self.page.overlay.append(self.file_picker)
         self._load_intents_json()
         self._select_latest_generated_if_any()
+        # Aplicar estado inicial de modo
+        self._on_mode_change(None)
 
     # --- Helpers ---
     def _generated_dir(self) -> Path:
@@ -116,7 +125,7 @@ class ConfigView(ft.Container):
     def _on_editor_change(self, e):
         self.edited_since_confirm = True
         # En modo generar: deshabilitar hasta confirmar
-        if self.tabs.selected_index == 1:
+        if self.use_generate.value:
             self.train_btn.disabled = True
         self.update()
 
@@ -135,13 +144,37 @@ class ConfigView(ft.Container):
         self.update()
 
     def _on_mode_change(self, _):
-        # Si está en modo local (0), la sección de entrenamiento queda deshabilitada
-        is_local = self.tabs.selected_index == 0
+        # Alternar entre usar modelo local (checkbox off) y generar nuevo (checkbox on)
+        is_local = not self.use_generate.value
+        # Visibilidad de secciones
+        self.local_section.visible = is_local
+        self.generate_section.visible = not is_local
+        # Mostrar info de versión/label solo en modo generar
+        self.custom_version_text.visible = not is_local
+        self.custom_label_field.visible = not is_local
+        if not is_local:
+            # Sincronizar campos con el modelo actual
+            self._refresh_custom_meta()
+        # Estado de controles de generación
         self.intents_editor.disabled = is_local
         self.confirm_btn.disabled = is_local
         self.edit_again_btn.disabled = is_local
         self.train_btn.disabled = True  # siempre al cambiar de modo
         self.update()
+
+    def _refresh_custom_meta(self):
+        # Actualiza el texto de versión y el valor del label según el modelo
+        ver = getattr(self.model, "custom_version", 0)
+        label = getattr(self.model, "custom_label", "") or ""
+        self.custom_version_text.value = f"Versión del modelo: v{ver}"
+        self.custom_label_field.value = label
+        # Si el editor está oculto tras confirmar, mantenemos su visibilidad actual
+        self.update()
+
+    def _on_label_change(self, e):
+        # Actualiza el label en el modelo a medida que el usuario escribe
+        self.model.set_custom_meta(label=self.custom_label_field.value)
+        self._refresh_custom_meta()
 
     async def _fake_training_async(self):
         # Entrenamiento simulado con barra de progreso y creación de archivo .h5
@@ -160,6 +193,9 @@ class ConfigView(ft.Container):
         out_path.write_text("mock model bytes", encoding="utf-8")
         # Seleccionar el último generado como activo
         self.model.set_model_path(str(out_path))
+        # Incrementar versión y mantener/actualizar label
+        self.model.bump_version(label=self.custom_label_field.value)
+        self._refresh_custom_meta()
         self.page.snack_bar = ft.SnackBar(ft.Text(f"Entrenamiento listo. Modelo: {out_path.name}"))
         self.page.snack_bar.open = True
         # Marcar como último entrenado
@@ -168,7 +204,7 @@ class ConfigView(ft.Container):
 
     def _start_fake_training(self, _):
         # Sólo permitir si está en modo generar
-        if self.tabs.selected_index != 1:
+        if not self.use_generate.value:
             return
         self.page.run_task(self._fake_training_async)
 
