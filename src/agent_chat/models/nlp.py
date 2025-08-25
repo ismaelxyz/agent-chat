@@ -203,8 +203,8 @@ def vectorize_training(words: List[str], classes: List[str], documents: List[Tup
 def train_and_save(intents: Dict[str, Any], out_dir: str | Path, *,
                    epochs: int = 100, batch_size: int = 5) -> IntentArtifacts:
     """Train a small dense NN and save artifacts next to the model file.
-
-    Returns paths to model (.h5), words.pkl and classes.pkl.
+    
+    Returns paths to model (.keras), words.pkl and classes.pkl.
     """
     ensure_nltk()
     print("[chatbot] Inicio de entrenamiento")
@@ -227,7 +227,8 @@ def train_and_save(intents: Dict[str, Any], out_dir: str | Path, *,
     model.add(Dropout(0.5, name="drop2"))
     model.add(Dense(train_y.shape[1], activation="softmax", name="out"))
 
-    sgd = SGD(learning_rate=0.001, decay=1e-6, momentum=0.9, nesterov=True)
+    # Remove deprecated `decay` arg; use learning_rate schedules if needed
+    sgd = SGD(learning_rate=0.001, momentum=0.9, nesterov=True)
     model.compile(loss="categorical_crossentropy", optimizer=sgd, metrics=["accuracy"])
 
     model.fit(train_x, train_y, epochs=epochs, batch_size=batch_size, verbose=0)
@@ -236,7 +237,8 @@ def train_and_save(intents: Dict[str, Any], out_dir: str | Path, *,
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
     base = out_dir / f"model_{ts}"
-    model_path = base.with_suffix(".h5")
+    # Save in native Keras format to avoid legacy HDF5 warning
+    model_path = base.with_suffix(".keras")
     words_path = base.with_name(base.name + "_words.pkl")
     classes_path = base.with_name(base.name + "_classes.pkl")
 

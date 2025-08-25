@@ -16,10 +16,10 @@ class ConfigView(ft.Container):
         self.intents_last_confirmed: str | None = None
         self.last_trained_text: str | None = None
         self.edited_since_confirm: bool = False
-
+        
         # Controls
         self.model_path_text = ft.Text("No model selected")
-        self.pick_model_btn = ft.ElevatedButton("Choose model (.h5)", icon=Icons.FOLDER_OPEN)
+        self.pick_model_btn = ft.ElevatedButton("Choose model (.keras or .h5)", icon=Icons.FOLDER_OPEN)
         self.file_picker = ft.FilePicker(on_result=self._on_pick_model)
         self.progress_bar = ft.ProgressBar(width=400, visible=False)
         self.train_btn = ft.ElevatedButton("Train", disabled=True, icon=Icons.PLAY_ARROW)
@@ -113,7 +113,9 @@ class ConfigView(ft.Container):
 
     def _select_latest_generated_if_any(self):
         # Use latest generated if present (by default)
-        models = sorted(self._generated_dir().glob("*.h5"), key=lambda p: p.stat().st_mtime, reverse=True)
+        # Look for latest generated model in native Keras format first, then legacy H5
+        models = list(self._generated_dir().glob("*.keras")) + list(self._generated_dir().glob("*.h5"))
+        models = sorted(models, key=lambda p: p.stat().st_mtime, reverse=True)
         if models:
             latest = models[0]
             self.model.set_model_path(str(latest))
@@ -255,7 +257,8 @@ class ConfigView(ft.Container):
                 self.update()
                 await asyncio.sleep(0.12)
             ts = __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
-            model_path = self._generated_dir() / f"model_{ts}.h5"
+            # Simulated artifact uses .keras extension to align with native format
+            model_path = self._generated_dir() / f"model_{ts}.keras"
             model_path.write_text("mock model bytes", encoding="utf-8")
             # Persist vocab to allow inference with real files
             try:
