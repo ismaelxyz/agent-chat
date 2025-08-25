@@ -121,7 +121,7 @@ def load_artifacts(model_path: str | Path, *, words_path: str | Path | None = No
 
     If words/classes paths are not provided, we try alongside the model with
     the convention: <modelbase>_words.pkl and <modelbase>_classes.pkl, else
-    fall back to `chatbot/words.pkl` and `chatbot/classes.pkl`.
+    fall back to `storage/words.pkl` and `storage/classes.pkl`.
     """
     ensure_nltk()
     model_p = Path(model_path)
@@ -132,8 +132,8 @@ def load_artifacts(model_path: str | Path, *, words_path: str | Path | None = No
 
     # Resolve sidecar paths
     w_p, c_p = _derive_sidecars(model_p)
-    words_p = Path(words_path) if words_path else (w_p if w_p.exists() else Path("chatbot/words.pkl"))
-    classes_p = Path(classes_path) if classes_path else (c_p if c_p.exists() else Path("chatbot/classes.pkl"))
+    words_p = Path(words_path) if words_path else (w_p if w_p.exists() else Path("storage/words.pkl"))
+    classes_p = Path(classes_path) if classes_path else (c_p if c_p.exists() else Path("storage/classes.pkl"))
 
     if not words_p.exists() or not classes_p.exists():
         raise FileNotFoundError("Vocabulary or classes files not found for model")
@@ -207,6 +207,7 @@ def train_and_save(intents: Dict[str, Any], out_dir: str | Path, *,
     Returns paths to model (.h5), words.pkl and classes.pkl.
     """
     ensure_nltk()
+    print("[chatbot] Inicio de entrenamiento")
     try:
         from keras.models import Sequential
         from keras.layers import Dense, Dropout
@@ -246,6 +247,7 @@ def train_and_save(intents: Dict[str, Any], out_dir: str | Path, *,
     with classes_path.open("wb") as f:
         pickle.dump(classes, f)
 
+    print("[chatbot] Fin de entrenamiento")
     return IntentArtifacts(model_path=model_path, words_path=words_path, classes_path=classes_path, intents_path=None)
 
 

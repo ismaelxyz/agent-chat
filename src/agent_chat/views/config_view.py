@@ -90,14 +90,24 @@ class ConfigView(ft.Container):
     def did_mount(self):
         # Attach file picker to page and load initial state
         self.page.overlay.append(self.file_picker)
+        # Restore persisted state via client_storage
+        try:
+            self._restore_persisted_state()  # defined below
+        except Exception:
+            pass
         self._load_intents_json()
-        self._select_latest_generated_if_any()
+        # Only auto-select latest if no model was restored
+        try:
+            if not getattr(self.model, "model_path", None):
+                self._select_latest_generated_if_any()
+        except Exception:
+            self._select_latest_generated_if_any()
         # Apply initial mode state
         self._on_mode_change(None)
 
     # --- Helpers ---
     def _generated_dir(self) -> Path:
-        d = Path("chatbot/generated_models")
+        d = Path("storage/generated_models")
         d.mkdir(parents=True, exist_ok=True)
         return d
 
@@ -112,7 +122,7 @@ class ConfigView(ft.Container):
 
     def _load_intents_json(self):
         try:
-            path = Path("chatbot/intents.json")
+            path = Path("storage/intents.json")
             self.intents_editor.value = path.read_text(encoding="utf-8") if path.exists() else "{\n  \"intents\": []\n}"
         except Exception:
             self.intents_editor.value = "{\n  \"intents\": []\n}"
@@ -123,6 +133,11 @@ class ConfigView(ft.Container):
             self.selected_model_path = p
             self.model.set_model_path(str(p))
             self.model_path_text.value = str(p)
+            # Persist selection
+            try:
+                self._persist_state()
+            except Exception:
+                pass
             self.update()
 
     def _on_editor_change(self, e):
@@ -149,6 +164,15 @@ class ConfigView(ft.Container):
     def _on_mode_change(self, _):
         # Toggle between local model (off) and generate new (on)
         is_local = not self.use_generate.value
+        try:
+            self.model.set_use_generated(not is_local)
+        except Exception:
+            pass
+        # Persist toggle
+        try:
+            self._persist_state()
+        except Exception:
+            pass
         # Section visibility
         self.local_section.visible = is_local
         self.generate_section.visible = not is_local
@@ -177,6 +201,11 @@ class ConfigView(ft.Container):
     def _on_label_change(self, e):
         # Update label as user types
         self.model.set_custom_meta(label=self.custom_label_field.value)
+        # Persist label change
+        try:
+            self._persist_state()
+        except Exception:
+            pass
         self._refresh_custom_meta()
 
     async def _train_async(self):
@@ -185,8 +214,9 @@ class ConfigView(ft.Container):
         self.progress_bar.visible = True
         self.progress_bar.value = 0
         self.update()
+        print("[ui] Inicio de entrenamiento")
         # Write intents to disk
-        intents_path = Path("chatbot/intents.json")
+        intents_path = Path("storage/intents.json")
         try:
             intents_data = nlp.load_intents(intents_path) if intents_path.exists() else None
         except Exception:
@@ -242,11 +272,17 @@ class ConfigView(ft.Container):
             return
         finally:
             self.progress_bar.visible = False
+            print("[ui] Fin de entrenamiento")
 
         # Activate the generated model
         if model_path:
             self.model.set_model_path(str(model_path))
         self.model.bump_version(label=self.custom_label_field.value)
+        # Persist new model and meta
+        try:
+            self._persist_state()
+        except Exception:
+            pass
         self._refresh_custom_meta()
         self.page.snack_bar = ft.SnackBar(ft.Text(f"Training complete. Model: {model_path.name}"))
         self.page.snack_bar.open = True
@@ -257,4 +293,41 @@ class ConfigView(ft.Container):
         if not self.use_generate.value:
             return
         self.page.run_task(self._train_async)
+
+    # --- Persistence via client_storage ---
+    def _persist_state(self):
+        cs = self.page.client_storage
+        cs.set("chat_use_generated", "1" if getattr(self.model, "use_generated", False) else "0")
+        cs.set("chat_model_path", getattr(self.model, "model_path", "") or "")
+        cs.set("chat_custom_version", str(getattr(self.model, "custom_version", 0)))
+        cs.set("chat_custom_label", getattr(self.model, "custom_label", "") or "")
+
+    def _restore_persisted_state(self):
+        cs = self.page.client_storage
+        use_gen = cs.get("chat_use_generated")
+        if use_gen is not None:
+            self.use_generate.value = str(use_gen).lower() in ("1", "true", "yes")
+            try:
+                self.model.set_use_generated(self.use_generate.value)
+            except Exception:
+                pass
+        ver = cs.get("chat_custom_version")
+        if ver is not None:
+            try:
+                self.model.set_custom_meta(version=int(str(ver)))
+            except Exception:
+                pass
+        label = cs.get("chat_custom_label")
+        if label is not None:
+            try:
+                self.model.set_custom_meta(label=str(label))
+            except Exception:
+                pass
+        model_path = cs.get("chat_model_path")
+        if model_path:
+            p = Path(str(model_path))
+            if p.exists():
+                self.selected_model_path = p
+                self.model.set_model_path(str(p))
+                self.model_path_text.value = str(p)
 

@@ -18,7 +18,6 @@ class ChatBotModel:
     """
 
     def __init__(self):
-        
         # Active artifacts
         self.model_path: Optional[str] = None
         self._intent_model = None  # loaded keras + vocab
@@ -26,6 +25,11 @@ class ChatBotModel:
         # Custom meta for display/testing
         self.custom_version: int = 0
         self.custom_label: str = ""
+        # Whether to use generated (custom) model vs local/manual
+        self.use_generated: bool = False
+
+    # Initial state is provided by UI via client_storage restore
+    # (no file-based persistence here)
 
     # ---- Configuration API ----
     def set_model_path(self, path: Optional[str]):
@@ -36,24 +40,33 @@ class ChatBotModel:
             return
         try:
             # Try to load intents file colocated in project
-            intents_path = Path("chatbot/intents.json")
+            intents_path = Path("storage/intents.json")
             if intents_path.exists():
                 self._intents_data = load_intents(intents_path)
             self._intent_model = load_artifacts(path)
         except Exception:
             # Keep fallback
             self._intent_model = None
+        finally:
+            pass
 
     def set_custom_meta(self, *, version: int | None = None, label: str | None = None):
         if version is not None:
             self.custom_version = version
         if label is not None:
             self.custom_label = label
+    # UI layer persists via client_storage
 
     def bump_version(self, label: str | None = None):
         self.custom_version += 1
         if label is not None:
             self.custom_label = label
+    # UI layer persists via client_storage
+
+    def set_use_generated(self, value: bool):
+        self.use_generated = bool(value)
+        # UI layer persists via client_storage
+    # (Persistence is handled by ConfigView via Flet client_storage)
 
     # ---- Inference ----
     def get_response(self, message: str) -> str:
@@ -66,7 +79,7 @@ class ChatBotModel:
             try:
                 tag = self._intent_model.predict_tag(text)
                 return respond_from_intents(tag, self._intents_data)
-            except Exception:
+            except Exception as e:
                 # If model inference fails, drop to fallback
                 pass
 

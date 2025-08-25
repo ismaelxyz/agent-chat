@@ -11,12 +11,16 @@ dependencies = [
     "flet (>=0.28.3,<0.29.0)",
     "numpy (>=2.3.2,<3.0.0)",
     "nltk (>=3.9.1,<4.0.0)",
-    "keras (>=3.11.3,<4.0.0)"
+    "keras (>=3.11.3,<4.0.0)",
+    "tensorflow (>=2.20.0,<3.0.0)"
 ]
 
 [tool.poetry]
 packages = [{include = "agent_chat", from = "src"}]
 
+
+[tool.poetry.group.dev.dependencies]
+h5py = "^3.14.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
