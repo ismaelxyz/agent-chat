@@ -11,6 +11,6 @@ __pycache__
 dist/
 build/
 chatbot/
-storage/generated_models/*.h5
+storage/generated_models/*
 storage/state.json
 storage/*.pkl
