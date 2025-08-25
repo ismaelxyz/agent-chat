@@ -13,3 +13,7 @@ class ChatController:
 
     def get_messages(self):
         return self.messages
+
+    # Optional: control model selection via controller
+    def select_model(self, path: str | None):
+        self.model.set_model_path(path)

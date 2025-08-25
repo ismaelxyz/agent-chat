@@ -7,8 +7,8 @@ class ChatView(ft.Container):
     def __init__(self, controller: ChatController):
         self.controller = controller
         self.chat_list = ft.ListView(expand=True, spacing=10, auto_scroll=True)
-        self.input_box = ft.TextField(hint_text="Escribe tu mensaje...", expand=True, autofocus=True)
-        self.send_btn = ft.IconButton(icon=Icons.SEND, tooltip="Enviar", bgcolor=Colors.BLUE_200, icon_color=Colors.WHITE)
+        self.input_box = ft.TextField(hint_text="Type your message...", expand=True, autofocus=True)
+        self.send_btn = ft.IconButton(icon=Icons.SEND, tooltip="Send", bgcolor=Colors.BLUE_200, icon_color=Colors.WHITE)
 
         # Event wiring
         self.send_btn.on_click = self.send_message
