@@ -210,7 +210,7 @@ def train_and_save(intents: Dict[str, Any], out_dir: str | Path, *,
     print("[chatbot] Inicio de entrenamiento")
     try:
         from keras.models import Sequential
-        from keras.layers import Dense, Dropout
+        from keras.layers import Dense, Dropout, Input
         from keras.optimizers import SGD
     except Exception as e:  # pragma: no cover - environment dependent
         raise RuntimeError("Keras backend not available to train model") from e
@@ -221,7 +221,8 @@ def train_and_save(intents: Dict[str, Any], out_dir: str | Path, *,
     train_x, train_y = vectorize_training(words, classes, documents)
 
     model = Sequential(name="chatbot_dense")
-    model.add(Dense(128, input_shape=(train_x.shape[1],), activation="relu", name="inp_layer"))
+    model.add(Input(shape=(train_x.shape[1],), name="input"))
+    model.add(Dense(128, activation="relu", name="inp_layer"))
     model.add(Dropout(0.5, name="drop1"))
     model.add(Dense(64, activation="relu", name="hidden"))
     model.add(Dropout(0.5, name="drop2"))

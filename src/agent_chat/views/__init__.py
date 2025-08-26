@@ -95,9 +95,7 @@ def run(page: ft.Page):
             except Exception:
                 # Graceful fallback: skip restore and continue
                 model_path = None
-            # use_gen = cs.get("chat_use_generated")
 
-            print("Restoring model from:", model_path)
             if model_path:
                 controller.select_model(str(model_path))
 
@@ -125,7 +123,7 @@ def run(page: ft.Page):
     def _select_model_and_refresh(p):
         orig_select_model(p)
         _refresh_app_status()
-        
+
     controller.select_model = _select_model_and_refresh
 
     # Also wrap model.set_model_path so direct calls trigger status update
