@@ -69,6 +69,10 @@ class ChatBotModel:
     # (Persistence is handled by ConfigView via Flet client_storage)
 
     # ---- Inference ----
+    def has_active_model(self) -> bool:
+        """Return True if a model and its intents are loaded and usable."""
+        return self._intent_model is not None and self._intents_data is not None
+
     def get_response(self, message: str) -> str:
         text = (message or "").strip()
         if not text:
@@ -82,6 +86,12 @@ class ChatBotModel:
             except Exception as e:
                 # If model inference fails, drop to fallback
                 pass
+        # Lightweight keyword-based fallback
+        low = text.lower()
+        if any(k in low for k in ("hello", "hi", "hey")):
+            return "Hi there!" + self._suffix()
+        if any(k in low for k in ("bye", "goodbye", "see you")):
+            return "Bye!" + self._suffix()
 
         return "I don't understand, can you rephrase?" + self._suffix()
 
