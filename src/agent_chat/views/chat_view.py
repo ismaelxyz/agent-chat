@@ -9,6 +9,10 @@ class ChatView(ft.Container):
         self.chat_list = ft.ListView(expand=True, spacing=10, auto_scroll=True)
         self.input_box = ft.TextField(hint_text="Type your message...", expand=True, autofocus=True)
         self.send_btn = ft.IconButton(icon=Icons.SEND, tooltip="Send", bgcolor=Colors.BLUE_200, icon_color=Colors.WHITE)
+        self.loading_banner = ft.Row([
+            ft.ProgressRing(),
+            ft.Text("Cargando modelo, por favor espere...", color=Colors.BLUE_700),
+        ], visible=False, spacing=10)
 
         # Event wiring
         self.send_btn.on_click = self.send_message
@@ -17,6 +21,7 @@ class ChatView(ft.Container):
         content = ft.Column([
             ft.Text("Chat", size=22, weight=ft.FontWeight.BOLD, color=Colors.BLUE_700),
             ft.Divider(),
+            self.loading_banner,
             ft.Container(self.chat_list, expand=True, height=420, bgcolor=Colors.WHITE, border_radius=10, padding=10),
             ft.Row([self.input_box, self.send_btn], alignment=ft.MainAxisAlignment.CENTER),
         ], expand=True, spacing=10)
@@ -61,3 +66,10 @@ class ChatView(ft.Container):
                     ], alignment=ft.MainAxisAlignment.START)
                 )
         self.page.update()
+
+    # --- Loading state ---
+    def set_loading(self, value: bool):
+        self.loading_banner.visible = bool(value)
+        self.input_box.disabled = bool(value)
+        self.send_btn.disabled = bool(value)
+        self.update()

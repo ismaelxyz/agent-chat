@@ -60,3 +60,30 @@ def run(page: ft.Page):
     # Layout principal
     page.add(ft.Column([chat_view, config_view], expand=True))
 
+    # Preload model on startup
+    async def _preload():
+        try:
+            chat_view.set_loading(True)
+            # Attempt to restore from persisted state
+            cs = page.client_storage
+            model_path = cs.get("chat_model_path")
+            use_gen = cs.get("chat_use_generated")
+            if model_path:
+                controller.select_model(str(model_path))
+            else:
+                # Fallback: pick latest generated automatically
+                try:
+                    from pathlib import Path
+                    gen_dir = Path("storage/generated_models")
+                    if gen_dir.exists():
+                        models = list(gen_dir.glob("*.keras")) + list(gen_dir.glob("*.h5"))
+                        models = sorted(models, key=lambda p: p.stat().st_mtime, reverse=True)
+                        if models:
+                            controller.select_model(str(models[0]))
+                except Exception:
+                    pass
+        finally:
+            chat_view.set_loading(False)
+
+    page.run_task(_preload)
+
